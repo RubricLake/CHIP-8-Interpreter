@@ -4,41 +4,58 @@
 	Date Made:	5/24/2025
 */
 
+#ifndef EMULATOR_H
+#define EMULATOR_H
+
 #include <map>
-using std::map;
+#include <stack>
+
+using std::map, std::stack;
 
 class Emulator {
+public:
+
+	// Initialize System
+	Emulator();
+
+	// Read Instruction from RAM
+	// Increment PC
+	// Execute Instruction
+	void tick();
+
+	// Some CHIP-8 programs or interpreters do slightly
+	// different things for the bitwise instructions (Resetting VF). 
+	// This method turns that quirk on or off.
+	// https://chip8.gulrak.net/#quirk5
+	void setBitwiseQuirk(bool setting) { resetVF = setting; }
+
+	// Some CHIP-8 programs or interpreters do slightly
+	// different things for the shift instructions (using VY). 
+	// This method turns that quirk on or off.
+	// https://chip8.gulrak.net/#quirk6
+	void setShiftQuirk(bool setting) { shiftVY = setting; }
+
 
 private:
-	// Random Access Memory
+	/* Quirk Toggles */
+	bool shiftVY;
+	bool resetVF;
+
+	/* Emulated Hardware */
 	uint8_t RAM[4096];
-
-	// Program Counter (Instruction Pointer)
 	uint16_t PC;
-
-	// General purpose registers (VF is 'carry' or the 'no borrow' flag)
 	uint8_t V[16];
-
-	// Address Register
 	uint16_t I;
-
-	// Stack Pointer
-	uint16_t sp;
-
-	// Timers
+	stack<uint16_t> Stack;
 	uint8_t delayTimer;
 	uint8_t soundTimer;
-
-	// Keyboard Map
 	map<SDL_Scancode, bool> keyMap;
-
-	// Display
-	bool screen[64][32];
+	uint8_t screen[64][32];
 	
-	/* OPCODES DECLARATIONS*/
+	/* OPCODE DECLARATIONS*/
 
 	// 0NNN
-	void callFunc();
+	void callFunc(uint16_t NNN);
 
 	// 00E0
 	void clearDisplay();
@@ -62,10 +79,10 @@ private:
 	void skipRegEq(uint16_t X, uint16_t Y);
 	
 	// 6XNN
-	void setRegX(uint16_t X);
+	void setRegX(uint16_t X, uint16_t NN); 
 
-	// 7XNN (Carry Flag Unchanged)
-	void addRegX(uint16_t X);
+	// 7XNN 
+	void addRegX(uint16_t X, uint16_t NN);
 
 	// 8XY0
 	void setRegXY(uint16_t X, uint16_t Y);
@@ -79,7 +96,7 @@ private:
 	// 8XY3
 	void regXor(uint16_t X, uint16_t Y);
 
-	// 8XY4 (Overflow flag)
+	// 8XY4 
 	void addRegXY(uint16_t X, uint16_t Y);
 
 	// 8XY5
@@ -88,7 +105,7 @@ private:
 	// 8XY6
 	void shrRegXY(uint16_t X, uint16_t Y);
 
-	// 8XY7 (Underflow Flag)
+	// 8XY7 
 	void subRegYX(uint16_t X, uint16_t Y);
 
 	// 8XYE
@@ -104,7 +121,7 @@ private:
 	void jumpPlus(uint16_t NNN);
 
 	// CXNN
-	void setXRand(uint16_t NN);
+	void setXRand(uint16_t X, uint16_t NN);
 
 	// DXYN
 	void draw(uint16_t X, uint16_t Y, uint16_t N);
@@ -141,12 +158,6 @@ private:
 
 	// FX65
 	void regLoad(uint16_t X);
-
-public:
-
-	// Initialize System
-	Emulator();
-
-	// Execute Instruction
-	void tick();
 };
+
+#endif

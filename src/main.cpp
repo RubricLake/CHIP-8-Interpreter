@@ -7,6 +7,7 @@
 		CHIP-8 Interpreter / Emulator.
 		Follows the wikipedia page on the subject.
 		https://en.wikipedia.org/wiki/CHIP-8
+		https://chip8.gulrak.net/  <--- Quirks
 */
 
 
