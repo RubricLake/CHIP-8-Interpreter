@@ -12,11 +12,17 @@
 
 
 #include <iostream>
+#include <string>
 #include "SDL3/SDL.h"
 #include "emulator.h"
 
+using std::string;
+
+const string ROM_DIR = "../ROM/";
+
 int main() {
-	
-	std::cout << "Hello" << std::endl;
+	Emulator emu;
+	emu.readROM(ROM_DIR + "test_opcode.ch8");
+
 	return 0;
 }

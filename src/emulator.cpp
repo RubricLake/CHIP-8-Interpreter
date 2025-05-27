@@ -5,6 +5,7 @@
 */
 
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <stdint.h>
 #include <algorithm>
@@ -14,8 +15,66 @@
 #include "SDL3/SDL.h"
 #include "emulator.h"
 
+using mapEntry = std::pair<SDL_Scancode, int>;
 
-Emulator::Emulator() {}
+// Initialize Emulator
+Emulator::Emulator() {
+	memset(RAM, 0, sizeof(RAM));
+	memset(V, 0, sizeof(V));
+	memset(screen, 0, sizeof(screen));
+	PC = 200;
+	I = 0;
+	delayTimer = 0;
+	soundTimer = 0;
+	shiftVY = false;
+	resetVF = false;
+
+	/*
+		Key Map Layout
+		1 2 3 4
+		q w e r
+		a s d f
+		z x c v
+	*/
+	keyMap.insert(mapEntry(SDL_SCANCODE_1, 0));
+	keyMap.insert(mapEntry(SDL_SCANCODE_2, 1));
+	keyMap.insert(mapEntry(SDL_SCANCODE_3, 2));
+	keyMap.insert(mapEntry(SDL_SCANCODE_4, 3));
+	keyMap.insert(mapEntry(SDL_SCANCODE_Q, 4));
+	keyMap.insert(mapEntry(SDL_SCANCODE_W, 5));
+	keyMap.insert(mapEntry(SDL_SCANCODE_E, 6));
+	keyMap.insert(mapEntry(SDL_SCANCODE_R, 7));
+	keyMap.insert(mapEntry(SDL_SCANCODE_A, 8));
+	keyMap.insert(mapEntry(SDL_SCANCODE_S, 9));
+	keyMap.insert(mapEntry(SDL_SCANCODE_D, 10));
+	keyMap.insert(mapEntry(SDL_SCANCODE_F, 11));
+	keyMap.insert(mapEntry(SDL_SCANCODE_Z, 12));
+	keyMap.insert(mapEntry(SDL_SCANCODE_X, 13));
+	keyMap.insert(mapEntry(SDL_SCANCODE_C, 14));
+	keyMap.insert(mapEntry(SDL_SCANCODE_V, 15));
+	
+}
+
+void Emulator::readROM(const std::string& PathToROM) {
+	std::ifstream inFile(PathToROM, std::ios::binary);
+	if (!inFile.is_open())
+		throw std::runtime_error("Unable to open ROM. Double check the file path.");
+
+	inFile.seekg(0, inFile.end);
+	std::streamsize inFileSize = inFile.tellg();
+	inFile.seekg(0, inFile.beg);
+
+	if (inFileSize < 0)
+		throw std::runtime_error("Unable to read file size.");
+	else if (inFileSize + 0x200 > 4096)
+		throw std::runtime_error("ROM is too large to store in RAM.");
+	
+	inFile.seekg(0, std::ios::beg);
+	if (!inFile.read(reinterpret_cast<char*>(&RAM[0x200]), inFileSize))
+		throw std::runtime_error("Unable to open ROM");
+	
+	inFile.close();
+}
 
 void Emulator::tick() {}
 

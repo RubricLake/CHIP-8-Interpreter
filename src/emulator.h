@@ -9,6 +9,7 @@
 
 #include <map>
 #include <stack>
+#include <string>
 
 using std::map, std::stack;
 
@@ -17,6 +18,10 @@ public:
 
 	// Initialize System
 	Emulator();
+
+	// Read instructions from ROM to RAM.
+	// Instructions start at address 0x200
+	void readROM(const std::string& PathToROM);
 
 	// Read Instruction from RAM
 	// Increment PC
@@ -49,7 +54,7 @@ private:
 	stack<uint16_t> Stack;
 	uint8_t delayTimer;
 	uint8_t soundTimer;
-	map<SDL_Scancode, bool> keyMap;
+	map<SDL_Scancode, int> keyMap;
 	uint8_t screen[64][32];
 	
 	/* OPCODE DECLARATIONS*/
