@@ -10,6 +10,7 @@
 #include <map>
 #include <stack>
 #include <string>
+#include "SDL3/SDL.h"
 
 using std::map, std::stack;
 
@@ -42,6 +43,10 @@ public:
 
 
 private:
+	/* SDL */
+	SDL_Renderer* renderer;
+	SDL_Window* window;
+
 	/* Quirk Toggles */
 	bool shiftVY;
 	bool resetVF;
@@ -55,9 +60,14 @@ private:
 	uint8_t delayTimer;
 	uint8_t soundTimer;
 	map<SDL_Scancode, int> keyMap;
-	uint8_t screen[64][32];
+	uint8_t screen[32][64];
 	
-	/* OPCODE DECLARATIONS*/
+	/* Helper Functions */
+	void swapBuffers() const;
+
+	////////////////////////////////
+	/*	        OPCODES          */
+	//////////////////////////////
 
 	// 0NNN
 	void callFunc(uint16_t NNN);

@@ -17,8 +17,36 @@
 
 using mapEntry = std::pair<SDL_Scancode, int>;
 
-// Initialize Emulator
+constexpr int C8_WIDTH = 64;
+constexpr int C8_HEIGHT = 32;
+
+uint8_t fontData[80] =
+{ 0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
+ 0x20, 0x60, 0x20, 0x20, 0x70,   // 1
+ 0xF0, 0x10, 0xF0, 0x80, 0xF0,   // 2
+ 0xF0, 0x10, 0xF0, 0x10, 0xF0,   // 3
+ 0x90, 0x90, 0xF0, 0x10, 0x10,   // 4
+ 0xF0, 0x80, 0xF0, 0x10, 0xF0,   // 5
+ 0xF0, 0x80, 0xF0, 0x90, 0xF0,   // 6
+ 0xF0, 0x10, 0x20, 0x40, 0x40,   // 7
+ 0xF0, 0x90, 0xF0, 0x90, 0xF0,   // 8
+ 0xF0, 0x90, 0xF0, 0x10, 0xF0,   // 9
+ 0xF0, 0x90, 0xF0, 0x90, 0x90,   // A
+ 0xE0, 0x90, 0xE0, 0x90, 0xE0,   // B
+ 0xF0, 0x80, 0x80, 0x80, 0xF0,   // C
+ 0xE0, 0x90, 0x90, 0x90, 0xE0,   // D
+ 0xF0, 0x80, 0xF0, 0x80, 0xF0,   // E
+ 0xF0, 0x80, 0xF0, 0x80, 0x80 }; // F
+
+// Initialize Emulator and SDL
 Emulator::Emulator() {
+	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
+	window = SDL_CreateWindow("CHIP8-8", C8_WIDTH * 10, C8_HEIGHT * 10, 0);
+	renderer = SDL_CreateRenderer(window, NULL);
+	SDL_SetRenderLogicalPresentation(renderer, C8_WIDTH, C8_HEIGHT, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+	SDL_RenderPresent(renderer);
+
 	memset(RAM, 0, sizeof(RAM));
 	memset(V, 0, sizeof(V));
 	memset(screen, 0, sizeof(screen));
@@ -55,6 +83,7 @@ Emulator::Emulator() {
 	
 }
 
+// Load given file and predefined font into RAM.
 void Emulator::readROM(const std::string& PathToROM) {
 	std::ifstream inFile(PathToROM, std::ios::binary);
 	if (!inFile.is_open())
@@ -73,21 +102,41 @@ void Emulator::readROM(const std::string& PathToROM) {
 	if (!inFile.read(reinterpret_cast<char*>(&RAM[0x200]), inFileSize))
 		throw std::runtime_error("Unable to open ROM");
 	
-	inFile.close();
+	inFile.close(); 
+	memcpy(&RAM[0], fontData, sizeof(fontData)); 
 }
 
 void Emulator::tick() {}
 
-/* OPCODE DEFINITIONS */
+// Draw the screen buffer to the screen
+// Sets draw color to black.
+void Emulator::swapBuffers() const {
+	for (int i = 0; i < C8_HEIGHT; i++) {
+		for (int j = 0; j < C8_WIDTH; j++) {
+			uint8_t color = (screen[i][j] == 1) ? 255 : 0;
+			const SDL_FRect pixel = { j, i, 1.0f, 1.0f };
+			SDL_SetRenderDrawColor(renderer, color, color, color, 255);
+			SDL_RenderFillRect(renderer, &pixel);
+		}
+	}
+	SDL_RenderPresent(renderer);
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+	SDL_Delay(1);
+}
+
+
+////////////////////////////////
+/*	        OPCODES          */
+//////////////////////////////
 
 void Emulator::callFunc(uint16_t NNN) { 
 	std::cout << "INSTRUCTION IGNORED: 0NNN" << std::endl;
 }
 
+
 void Emulator::clearDisplay() {
 	memset(screen, 0, sizeof(screen));
-	
-	// TODO: Clear the screen with SDL3 (Create Function to update screen)
+	swapBuffers();
 }
 
 void Emulator::returnFunc() {
