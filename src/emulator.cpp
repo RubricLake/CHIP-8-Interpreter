@@ -45,7 +45,8 @@ Emulator::Emulator() {
 	renderer = SDL_CreateRenderer(window, NULL);
 	SDL_SetRenderLogicalPresentation(renderer, C8_WIDTH, C8_HEIGHT, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-	SDL_RenderPresent(renderer);
+	running = false;
+	listener = SDL_Event();
 
 	memset(RAM, 0, sizeof(RAM));
 	memset(V, 0, sizeof(V));
@@ -56,6 +57,8 @@ Emulator::Emulator() {
 	soundTimer = 0;
 	shiftVY = false;
 	resetVF = false;
+	incrementOnlyByX = false;
+	incrementNone = false;
 
 	/*
 		Key Map Layout
@@ -106,7 +109,32 @@ void Emulator::readROM(const std::string& PathToROM) {
 	memcpy(&RAM[0], fontData, sizeof(fontData)); 
 }
 
-void Emulator::tick() {}
+void Emulator::tick() {
+	swapBuffers();
+}
+
+void Emulator::run() {
+	running = true;
+	while (running) { 
+		pollEvents();
+		// Magic tick math goes here
+		tick();
+	}
+}
+
+// Handles all input
+void Emulator::pollEvents() {
+	while (SDL_PollEvent(&listener)) {
+		if (listener.type == SDL_EVENT_QUIT)
+			running = false;
+		if (listener.type == SDL_EVENT_KEY_DOWN)
+			switch (listener.key.scancode)
+			{
+				default:
+					break;
+			}
+	}
+}
 
 // Draw the screen buffer to the screen
 // Sets draw color to black.
@@ -124,7 +152,9 @@ void Emulator::swapBuffers() const {
 	SDL_Delay(1);
 }
 
-
+uint16_t Emulator::sprite_addr(uint8_t hex) const {
+	return hex * 5;
+}
 ////////////////////////////////
 /*	        OPCODES          */
 //////////////////////////////
@@ -252,14 +282,54 @@ void Emulator::jumpPlus(uint16_t NNN) { PC = V[0] + NNN; }
 void Emulator::setXRand(uint16_t X, uint16_t NN) { V[X] = (rand() % 256) & NN; }
 
 void Emulator::draw(uint16_t X, uint16_t Y, uint16_t N) {}
+
 void Emulator::skipKeyEq(uint16_t X) {}
+
 void Emulator::skipKeyNeq(uint16_t X) {}
-void Emulator::setXDelay(uint16_t X) {}
-void Emulator::waitForKey() {}
-void Emulator::setDelayX(uint16_t X) {}
-void Emulator::setSoundX(uint16_t X) {}
-void Emulator::addXI(uint16_t X) {}
-void Emulator::setISprite() {}
-void Emulator::setIBCD() {}
-void Emulator::regDump(uint16_t X) {}
-void Emulator::regLoad(uint16_t X) {}
+
+void Emulator::setXDelay(uint16_t X) { V[X] = delayTimer; }
+
+void Emulator::waitForKey() {
+	// Use SDL listener to handle this
+}
+
+void Emulator::setDelayX(uint16_t X) { delayTimer = V[X]; }
+
+void Emulator::setSoundX(uint16_t X) { soundTimer = V[X]; }
+
+void Emulator::addXI(uint16_t X) { I += V[X]; }
+
+void Emulator::setISprite(uint16_t X) { I = sprite_addr(V[X]); }
+
+void Emulator::setIBCD(uint16_t X) {
+	uint8_t num = V[X];
+	RAM[I] = num / 100;
+	RAM[I + 1] = (num / 10) % 10;
+	RAM[I + 2] = num % 10;	
+}
+
+void Emulator::regDump(uint16_t X) {
+	for (uint8_t i = 0; i <= X; i++) {
+		RAM[I + i] = V[i];
+	}
+	
+	if (incrementOnlyByX) // Quirk 12
+		I += X;
+	else if (incrementNone) // Quirk 12
+		;
+	else
+		I += X + 1;
+}
+
+void Emulator::regLoad(uint16_t X) {
+	for (uint8_t i = 0; i <= X; i++) {
+		V[i] = RAM[I + i];
+	}
+
+	if (incrementOnlyByX) // Quirk 12
+		I += X;
+	else if (incrementNone) // Quirk 12
+		;
+	else
+		I += X + 1;
+}

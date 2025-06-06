@@ -29,6 +29,9 @@ public:
 	// Execute Instruction
 	void tick();
 
+	// Begin emulation
+	void run();
+
 	// Some CHIP-8 programs or interpreters do slightly
 	// different things for the bitwise instructions (Resetting VF). 
 	// This method turns that quirk on or off.
@@ -46,24 +49,34 @@ private:
 	/* SDL */
 	SDL_Renderer* renderer;
 	SDL_Window* window;
+	SDL_Event listener;
+	bool running;
 
 	/* Quirk Toggles */
 	bool shiftVY;
 	bool resetVF;
+	bool incrementOnlyByX;
+	bool incrementNone;
+
+	/* Adjust as needed */
+	float tickSpeed = 1000.0f;
 
 	/* Emulated Hardware */
-	uint8_t RAM[4096];
-	uint16_t PC;
-	uint8_t V[16];
-	uint16_t I;
 	stack<uint16_t> Stack;
+	map<SDL_Scancode, int> keyMap;
+	uint16_t PC;
+	uint16_t I;
+	uint8_t RAM[4096];
+	uint8_t V[16];
+	uint8_t screen[32][64];
 	uint8_t delayTimer;
 	uint8_t soundTimer;
-	map<SDL_Scancode, int> keyMap;
-	uint8_t screen[32][64];
-	
+
+
 	/* Helper Functions */
+	void pollEvents();
 	void swapBuffers() const;
+	uint16_t sprite_addr(uint8_t hex) const;
 
 	////////////////////////////////
 	/*	        OPCODES          */
@@ -163,10 +176,10 @@ private:
 	void addXI(uint16_t X);
 
 	// FX29
-	void setISprite();
+	void setISprite(uint16_t X);
 
 	// FX33
-	void setIBCD();
+	void setIBCD(uint16_t X);
 
 	// FX55
 	void regDump(uint16_t X);

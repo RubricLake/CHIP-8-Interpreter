@@ -23,6 +23,6 @@ const string ROM_DIR = "../ROM/";
 int main() {
 	Emulator emu;
 	emu.readROM(ROM_DIR + "test_opcode.ch8");
-	emu.tick();
+	emu.run();
 	return 0;
 }
