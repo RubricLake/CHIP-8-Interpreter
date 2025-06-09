@@ -5,20 +5,17 @@
 */
 
 #include <iostream>
+#include <cstdlib>
 #include <fstream>
 #include <string>
 #include <stdint.h>
-#include <algorithm>
 #include <map>
 #include <stack>
 #include <stdexcept>
+#include <chrono>
 #include "SDL3/SDL.h"
 #include "emulator.h"
 
-using mapEntry = std::pair<SDL_Scancode, int>;
-
-constexpr int C8_WIDTH = 64;
-constexpr int C8_HEIGHT = 32;
 
 uint8_t fontData[80] =
 { 0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
@@ -40,6 +37,7 @@ uint8_t fontData[80] =
 
 // Initialize Emulator and SDL
 Emulator::Emulator() {
+	// Init SDL
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 	window = SDL_CreateWindow("CHIP8-8", C8_WIDTH * 10, C8_HEIGHT * 10, 0);
 	renderer = SDL_CreateRenderer(window, NULL);
@@ -48,9 +46,12 @@ Emulator::Emulator() {
 	running = false;
 	listener = SDL_Event();
 
+	// Emulator Values
 	memset(RAM, 0, sizeof(RAM));
 	memset(V, 0, sizeof(V));
 	memset(screen, 0, sizeof(screen));
+	lastFrame = {};
+	lastTick = {};
 	PC = 200;
 	I = 0;
 	delayTimer = 0;
@@ -67,23 +68,22 @@ Emulator::Emulator() {
 		a s d f
 		z x c v
 	*/
-	keyMap.insert(mapEntry(SDL_SCANCODE_1, 0));
-	keyMap.insert(mapEntry(SDL_SCANCODE_2, 1));
-	keyMap.insert(mapEntry(SDL_SCANCODE_3, 2));
-	keyMap.insert(mapEntry(SDL_SCANCODE_4, 3));
-	keyMap.insert(mapEntry(SDL_SCANCODE_Q, 4));
-	keyMap.insert(mapEntry(SDL_SCANCODE_W, 5));
-	keyMap.insert(mapEntry(SDL_SCANCODE_E, 6));
-	keyMap.insert(mapEntry(SDL_SCANCODE_R, 7));
-	keyMap.insert(mapEntry(SDL_SCANCODE_A, 8));
-	keyMap.insert(mapEntry(SDL_SCANCODE_S, 9));
-	keyMap.insert(mapEntry(SDL_SCANCODE_D, 10));
-	keyMap.insert(mapEntry(SDL_SCANCODE_F, 11));
-	keyMap.insert(mapEntry(SDL_SCANCODE_Z, 12));
-	keyMap.insert(mapEntry(SDL_SCANCODE_X, 13));
-	keyMap.insert(mapEntry(SDL_SCANCODE_C, 14));
-	keyMap.insert(mapEntry(SDL_SCANCODE_V, 15));
-	
+	keyMap.insert(mapEntry(SDL_SCANCODE_1, keyInfo(0)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_2, keyInfo(1)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_3, keyInfo(2)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_4, keyInfo(3)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_Q, keyInfo(4)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_W, keyInfo(5)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_E, keyInfo(6)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_R, keyInfo(7)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_A, keyInfo(8)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_S, keyInfo(9)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_D, keyInfo(10)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_F, keyInfo(11)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_Z, keyInfo(12)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_X, keyInfo(13)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_C, keyInfo(14)));
+	keyMap.insert(mapEntry(SDL_SCANCODE_V, keyInfo(15)));
 }
 
 // Load given file and predefined font into RAM.
@@ -110,7 +110,32 @@ void Emulator::readROM(const std::string& PathToROM) {
 }
 
 void Emulator::tick() {
-	swapBuffers();
+	// Handle Time
+	auto now = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double, std::milli> tickDiff = now - lastTick;
+	std::chrono::duration<double, std::milli> frameDiff = now - lastFrame;
+
+	double tickDelta = tickDiff.count();
+	double frameDelta = frameDiff.count();
+
+	if (tickDelta < TICK_SPEED_MS)
+		return;
+
+	// Update Timers
+	if (frameDelta >= SIXTY_HZ_MS) {
+		if (delayTimer > 0) delayTimer--;
+		if (soundTimer > 0) soundTimer--;
+		swapBuffers();
+		lastFrame = hires_clock::now();
+	}
+
+	if (waitingForKey) {
+		lastTick = hires_clock::now();
+		return;
+	}
+
+	// OPCODE Decision Tree Here
+	lastTick = std::chrono::high_resolution_clock::now();
 }
 
 void Emulator::run() {
@@ -125,14 +150,23 @@ void Emulator::run() {
 // Handles all input
 void Emulator::pollEvents() {
 	while (SDL_PollEvent(&listener)) {
-		if (listener.type == SDL_EVENT_QUIT)
-			running = false;
-		if (listener.type == SDL_EVENT_KEY_DOWN)
-			switch (listener.key.scancode)
-			{
-				default:
-					break;
-			}
+		switch (listener.type) {
+			case SDL_EVENT_QUIT:
+				running = false;
+				break;
+			case SDL_EVENT_KEY_UP:
+				if (isValidKey(listener.key.scancode))
+					keyMap.at(listener.key.scancode).down = false;
+				break;
+			case SDL_EVENT_KEY_DOWN:
+				if (isValidKey(listener.key.scancode))
+					keyMap.at(listener.key.scancode).down = true;
+				if (waitingForKey) {
+					waitingForKey = false;
+					V[waitingRegister] = keyMap.at(listener.key.scancode).mappedNum;
+				}
+				break;
+		}
 	}
 }
 
@@ -150,6 +184,10 @@ void Emulator::swapBuffers() const {
 	SDL_RenderPresent(renderer);
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_Delay(1);
+}
+
+bool Emulator::isValidKey(SDL_Scancode& key) const {
+	return keyMap.find(key) != keyMap.end();
 }
 
 uint16_t Emulator::sprite_addr(uint8_t hex) const {
@@ -289,8 +327,31 @@ void Emulator::skipKeyNeq(uint16_t X) {}
 
 void Emulator::setXDelay(uint16_t X) { V[X] = delayTimer; }
 
-void Emulator::waitForKey() {
-	// Use SDL listener to handle this
+void Emulator::waitForKey(uint16_t X) {
+	waitingForKey = true;
+	waitingRegister = X;
+
+	//SDL_Event e;
+	//
+	//while (true) {
+	//	while (SDL_PollEvent(&e)) {
+	//		if (e.type == SDL_EVENT_QUIT) {
+	//			std::exit(0);
+	//		}
+	//
+	//		if (e.type == SDL_EVENT_KEY_DOWN)
+	//		{
+	//			auto search = keyMap.find(e.key.scancode);
+	//			if (search != keyMap.end()) {
+	//				keyInfo& val = search->second;
+	//				val.down = true;
+	//				V[X] = val.mappedNum;
+	//				return;
+	//			}
+	//		}
+	//		SDL_Delay(1);
+	//	}
+	//}
 }
 
 void Emulator::setDelayX(uint16_t X) { delayTimer = V[X]; }

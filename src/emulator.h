@@ -3,20 +3,38 @@
 	By:			Ethan Kigotho (https://github.com/rubriclake)
 	Date Made:	5/24/2025
 */
-
+#pragma once
 #ifndef EMULATOR_H
 #define EMULATOR_H
 
+#include <chrono>
 #include <map>
 #include <stack>
 #include <string>
 #include "SDL3/SDL.h"
 
+
+struct keyInfo {
+	keyInfo(int num) {
+		mappedNum = num;
+		down = false;
+	}
+
+	int mappedNum;
+	bool down;
+};
+
 using std::map, std::stack;
+using mapEntry = std::pair<SDL_Scancode, keyInfo>;
+using hires_clock = std::chrono::high_resolution_clock;
+
+const int C8_WIDTH = 64;
+const int C8_HEIGHT = 32;
+const double SIXTY_HZ_MS = 16.67;
+const double TICK_SPEED_MS = (1.0 / 1000.0) * 1000;
 
 class Emulator {
 public:
-
 	// Initialize System
 	Emulator();
 
@@ -58,12 +76,17 @@ private:
 	bool incrementOnlyByX;
 	bool incrementNone;
 
-	/* Adjust as needed */
+	/* Emulator Values */
 	float tickSpeed = 1000.0f;
+	float frameRate = 60.0f;
+	std::chrono::time_point<hires_clock> lastFrame;
+	std::chrono::time_point<hires_clock> lastTick;
+	uint8_t waitingRegister = 0;
+	bool waitingForKey = false;
 
 	/* Emulated Hardware */
 	stack<uint16_t> Stack;
-	map<SDL_Scancode, int> keyMap;
+	map<SDL_Scancode, keyInfo> keyMap;
 	uint16_t PC;
 	uint16_t I;
 	uint8_t RAM[4096];
@@ -76,6 +99,7 @@ private:
 	/* Helper Functions */
 	void pollEvents();
 	void swapBuffers() const;
+	bool isValidKey(SDL_Scancode& key) const;
 	uint16_t sprite_addr(uint8_t hex) const;
 
 	////////////////////////////////
@@ -164,7 +188,7 @@ private:
 	void setXDelay(uint16_t X);
 
 	// FX0A
-	void waitForKey();
+	void waitForKey(uint16_t X);
 
 	// FX15
 	void setDelayX(uint16_t X);
