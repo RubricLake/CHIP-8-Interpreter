@@ -145,25 +145,30 @@ void Emulator::run() {
 		// Magic tick math goes here
 		tick();
 	}
+	std::cout << "Emulator shutting down..." << std::endl;
 }
 
 // Handles all input
 void Emulator::pollEvents() {
 	while (SDL_PollEvent(&listener)) {
+		SDL_Scancode scancode;
 		switch (listener.type) {
 			case SDL_EVENT_QUIT:
 				running = false;
 				break;
 			case SDL_EVENT_KEY_UP:
-				if (isValidKey(listener.key.scancode))
-					keyMap.at(listener.key.scancode).down = false;
+				scancode = listener.key.scancode;
+				if (isValidKey(scancode))
+					keyMap.at(scancode).down = false;
 				break;
 			case SDL_EVENT_KEY_DOWN:
-				if (isValidKey(listener.key.scancode))
-					keyMap.at(listener.key.scancode).down = true;
-				if (waitingForKey) {
-					waitingForKey = false;
-					V[waitingRegister] = keyMap.at(listener.key.scancode).mappedNum;
+				scancode = listener.key.scancode;
+				if (isValidKey(scancode)) {
+					keyMap.at(scancode).down = true;
+					if (waitingForKey) { // FX0A Functionality 
+						waitingForKey = false;
+						V[waitingRegister] = keyMap.at(scancode).mappedNum;
+					}
 				}
 				break;
 		}
