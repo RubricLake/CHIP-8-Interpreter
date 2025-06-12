@@ -195,6 +195,12 @@ bool Emulator::isValidKey(SDL_Scancode& key) const {
 	return keyMap.find(key) != keyMap.end();
 }
 
+// Returns the bit in 'place' of 'number'
+// The least significant bit is 'place' 0.
+uint8_t Emulator::getBit(uint8_t number, uint8_t place) const {
+	return (number >> place) & 1;
+}
+
 uint16_t Emulator::sprite_addr(uint8_t hex) const {
 	return hex * 5;
 }
@@ -324,11 +330,41 @@ void Emulator::jumpPlus(uint16_t NNN) { PC = V[0] + NNN; }
 
 void Emulator::setXRand(uint16_t X, uint16_t NN) { V[X] = (rand() % 256) & NN; }
 
-void Emulator::draw(uint16_t X, uint16_t Y, uint16_t N) {}
+void Emulator::draw(uint16_t X, uint16_t Y, uint16_t N) {
+	uint8_t xOrig = V[X];
+	uint8_t yOrig = V[Y];
+	V[0xf] = 0;
+	for (int i = 0; i < N; i++) {
+		uint8_t row = RAM[I + i];
+		for (int j = 0; j < 8; j++) {
+			uint8_t bit = getBit(row, 7 - j);
+			uint8_t& screenBit = screen[(yOrig + i) % C8_HEIGHT][(xOrig + j) % C8_WIDTH];
+			if (screenBit == 1 && bit == 1) // Flip Check
+				V[0xf] = 1;
+			screenBit ^= bit;
+		}
+	}
+}
 
-void Emulator::skipKeyEq(uint16_t X) {}
+void Emulator::skipKeyEq(uint16_t X) {
+	int keyNum = V[X];
+	for (const auto& [scancode, info] : keyMap) {
+		if (info.mappedNum == keyNum && info.down) {
+			PC += 2;
+			break;
+		}
+	}
+}
 
-void Emulator::skipKeyNeq(uint16_t X) {}
+void Emulator::skipKeyNeq(uint16_t X) {
+	int keyNum = V[X];
+	for (const auto& [scancode, info] : keyMap) {
+		if (info.mappedNum == keyNum && !info.down) {
+			PC += 2;
+			break;
+		}
+	}
+}
 
 void Emulator::setXDelay(uint16_t X) { V[X] = delayTimer; }
 

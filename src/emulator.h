@@ -100,6 +100,7 @@ private:
 	void pollEvents();
 	void swapBuffers() const;
 	bool isValidKey(SDL_Scancode& key) const;
+	uint8_t getBit(uint8_t number, uint8_t place) const;
 	uint16_t sprite_addr(uint8_t hex) const;
 
 	////////////////////////////////
