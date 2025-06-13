@@ -42,10 +42,14 @@ public:
 	// Instructions start at address 0x200
 	void readROM(const std::string& PathToROM);
 
-	// Read Instruction from RAM
-	// Increment PC
-	// Execute Instruction
+	// Handle Timers
+	// Call execute()
+	// Handle waiting for input (non-blocking)
 	void tick();
+
+	// OPCODE Decision Tree
+	// Fetch and Execute One (1) Instruction
+	void execute();
 
 	// Begin emulation
 	void run();

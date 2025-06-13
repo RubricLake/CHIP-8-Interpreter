@@ -134,15 +134,171 @@ void Emulator::tick() {
 		return;
 	}
 
-	// OPCODE Decision Tree Here
+	// OPCODE Decision Tree
+	try {
+		execute();
+	}
+	catch (const std::runtime_error& e) {
+		uint16_t code = std::stoi(e.what());
+		std::string userInput;
+		std::cout << "Unknown instruction: " << std::hex << code << std::dec << "\n";
+		std::cout << "Skip instruction and continue? Y or N.\n" << "Input: ";
+		std::cin >> userInput;
+		if (userInput.at(0) != 'Y' || userInput.at(0) != 'y')
+			running = false;
+			
+	}
+	
 	lastTick = std::chrono::high_resolution_clock::now();
 }
 
+void Emulator::execute() {
+	// Useful parts of instruction
+	uint8_t leftByte = RAM[PC];
+	uint8_t rightByte = RAM[PC + 1];
+	uint16_t bothByte = ((uint16_t) leftByte << 8) | rightByte;
+	uint8_t firstNib = leftByte >> 4; // Leftmost
+	uint8_t secondNib = leftByte & 0xf;
+	uint8_t thirdNib = rightByte >> 4;
+	uint8_t fourthNib = rightByte & 0xf; // Rightmost
+	PC += 2;
+
+	switch (firstNib)
+	{
+	case 0:
+		if (leftByte == 0x00 && rightByte == 0xEE)
+			returnFunc();
+		else if (leftByte == 0x00 && rightByte == 0xE0)
+			clearDisplay();
+		else
+			callFunc(0xCAFE); // Instruction Ignored
+		break;
+	case 1:
+		jump(bothByte & 0x0FFF);
+		break;
+	case 2:
+		callFuncAt(bothByte & 0x0FFF);
+		break;
+	case 3:
+		skipEq(secondNib, rightByte);
+		break;
+	case 4:
+		skipNeq(secondNib, rightByte);
+		break;
+	case 5:
+		skipRegEq(secondNib, thirdNib);
+		break;
+	case 6:
+		setRegX(secondNib, rightByte);
+		break;
+	case 7:
+		addRegX(secondNib, rightByte);
+		break;
+	case 8:
+		switch (fourthNib) {
+		case 0x0:
+			setRegXY(secondNib, thirdNib);
+			break;
+		case 0x1:
+			regOr(secondNib, thirdNib);
+			break;
+		case 0x2:
+			regAnd(secondNib, thirdNib);
+			break;
+		case 0x3:
+			regXor(secondNib, thirdNib);
+			break;
+		case 0x4:
+			addRegXY(secondNib, thirdNib);
+			break;
+		case 0x5:
+			subRegXY(secondNib, thirdNib);
+			break;
+		case 0x6:
+			shrRegXY(secondNib, thirdNib);
+			break;
+		case 0x7:
+			subRegYX(secondNib, thirdNib);
+			break;
+		case 0xE:
+			shlRegXY(secondNib, thirdNib);
+			break;
+		default:
+			throw std::runtime_error(std::to_string(bothByte));
+			break;
+		}
+		break;
+	case 9:
+		if (fourthNib == 0x0)
+			skipRegNeq(secondNib, thirdNib);
+		else
+			throw std::runtime_error(std::to_string(bothByte));
+		break;
+	case 0xA:
+		setI(bothByte & 0x0FFF);
+		break;
+	case 0xB:
+		jumpPlus(bothByte & 0x0FFF);
+		break;
+	case 0xC:
+		setXRand(secondNib, rightByte);
+		break;
+	case 0xD:
+		draw(secondNib, thirdNib, fourthNib);
+		break;
+	case 0xE:
+		if (rightByte == 0x9E)
+			skipKeyEq(secondNib);
+		else if (rightByte == 0xA1)
+			skipKeyNeq(secondNib);
+		else
+			throw std::runtime_error(std::to_string(bothByte));
+		break;
+	case 0xF:
+		switch (rightByte)
+		{
+		case 0x07:
+			setXDelay(secondNib);
+			break;
+		case 0x0A:
+			waitForKey(secondNib);
+			break;
+		case 0x15:
+			setDelayX(secondNib);
+			break;
+		case 0x18:
+			setSoundX(secondNib);
+			break;
+		case 0x1E:
+			addXI(secondNib);
+			break;
+		case 0x29:
+			setISprite(secondNib);
+			break;
+		case 0x33:
+			setIBCD(secondNib);
+			break;
+		case 0x55:
+			regDump(secondNib);
+			break;
+		case 0x65:
+			regLoad(secondNib);
+			break;
+		default:
+			throw std::runtime_error(std::to_string(bothByte));
+			break;
+		}
+		break;
+	default:
+		throw std::runtime_error(std::to_string(bothByte));
+		break;
+	}
+
+}
 void Emulator::run() {
 	running = true;
 	while (running) { 
 		pollEvents();
-		// Magic tick math goes here
 		tick();
 	}
 	std::cout << "Emulator shutting down..." << std::endl;
