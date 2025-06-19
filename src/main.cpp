@@ -20,12 +20,9 @@
 
 using std::string;
 
-const string ROM_DIR = "../ROM/";
-const string TEST_DIR = "../test/";
-
 int main() {
 	Emulator emu;
-	emu.readROM(TEST_DIR + "6-keypad.ch8");
+	emu.readROM("Path-To-Rom-Here");
 	emu.setShiftQuirk(true);
 	emu.setBitwiseQuirk(true);
 	emu.setDrawOnCall(true);
