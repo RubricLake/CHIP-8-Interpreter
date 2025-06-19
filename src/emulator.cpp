@@ -39,7 +39,7 @@ uint8_t fontData[80] =
 Emulator::Emulator() {
 	// Init SDL
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
-	window = SDL_CreateWindow("CHIP8-8", C8_WIDTH * 10, C8_HEIGHT * 10, 0);
+	window = SDL_CreateWindow("CHIP-8", C8_WIDTH * 10, C8_HEIGHT * 10, 0);
 	renderer = SDL_CreateRenderer(window, NULL);
 	SDL_SetRenderLogicalPresentation(renderer, C8_WIDTH, C8_HEIGHT, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -125,7 +125,8 @@ void Emulator::tick() {
 	if (frameDelta >= SIXTY_HZ_MS) {
 		if (delayTimer > 0) delayTimer--;
 		if (soundTimer > 0) soundTimer--;
-		swapBuffers();
+		if (!drawOnCall)
+			swapBuffers();
 		lastFrame = hires_clock::now();
 	}
 
@@ -314,18 +315,18 @@ void Emulator::pollEvents() {
 				break;
 			case SDL_EVENT_KEY_UP:
 				scancode = listener.key.scancode;
-				if (isValidKey(scancode))
-					keyMap.at(scancode).down = false;
-				break;
-			case SDL_EVENT_KEY_DOWN:
-				scancode = listener.key.scancode;
 				if (isValidKey(scancode)) {
-					keyMap.at(scancode).down = true;
+					keyMap.at(scancode).down = false;
 					if (waitingForKey) { // FX0A Functionality 
 						waitingForKey = false;
 						V[waitingRegister] = keyMap.at(scancode).mappedNum;
 					}
 				}
+				break;
+			case SDL_EVENT_KEY_DOWN:
+				scancode = listener.key.scancode;
+				if (isValidKey(scancode))
+					keyMap.at(scancode).down = true;
 				break;
 		}
 	}
@@ -334,6 +335,7 @@ void Emulator::pollEvents() {
 // Draw the screen buffer to the screen
 // Sets draw color to black.
 void Emulator::swapBuffers() const {
+	SDL_RenderClear(renderer);
 	for (int i = 0; i < C8_HEIGHT; i++) {
 		for (int j = 0; j < C8_WIDTH; j++) {
 			uint8_t color = (screen[i][j] == 1) ? 255 : 0;
@@ -437,10 +439,13 @@ void Emulator::addRegXY(uint16_t X, uint16_t Y) {
 }
 
 void Emulator::subRegXY(uint16_t X, uint16_t Y) {
-	V[0xF] = (V[X] >= V[Y]) ? 1 : 0;
-
-	if (X != 0xF) // Ensure flag stays set if X = F.
-		V[X] -= V[Y];
+	uint8_t origX = V[X];
+	uint8_t origY = V[Y];
+	V[X] = origX - origY;
+	if (origX >= origY)
+		V[0xF] = 1; // No Underflow
+	else
+		V[0xF] = 0; // Underflow
 }
 
 void Emulator::shrRegXY(uint16_t X, uint16_t Y) {
@@ -457,19 +462,22 @@ void Emulator::shrRegXY(uint16_t X, uint16_t Y) {
 
 
 void Emulator::subRegYX(uint16_t X, uint16_t Y) {
-	V[0xF] = (V[Y] >= V[X]) ? 1 : 0;
-
-	if (X != 0xF) // Ensure flag stays set if X = F.
-		V[X] = V[Y] - V[X];
+	uint8_t origX = V[X];
+	uint8_t origY = V[Y];
+	V[X] = origY - origX;
+	if (origY >= origX)
+		V[0xF] = 1; // Underflow
+	else
+		V[0xF] = 0; // No underflow
 }
 
 void Emulator::shlRegXY(uint16_t X, uint16_t Y) {
 	if (shiftVY) { // Quirk 6
 		V[X] = V[Y] << 1;
-		V[0xF] = V[Y] & (1u << 7);
+		V[0xF] = (V[Y] & (1u << 7)) >> 7;
 	}
 	else {
-		uint8_t bit = V[X] & (1u << 7); // Ensure flag stays set if X = F.
+		uint8_t bit = (V[X] & (1u << 7)) >> 7; // Ensure flag stays set if X = F.
 		V[X] <<= 1;
 		V[0xF] = bit;
 	}
@@ -487,19 +495,25 @@ void Emulator::jumpPlus(uint16_t NNN) { PC = V[0] + NNN; }
 void Emulator::setXRand(uint16_t X, uint16_t NN) { V[X] = (rand() % 256) & NN; }
 
 void Emulator::draw(uint16_t X, uint16_t Y, uint16_t N) {
-	uint8_t xOrig = V[X];
-	uint8_t yOrig = V[Y];
+	uint8_t xOrig = V[X] % C8_WIDTH;
+	uint8_t yOrig = V[Y] % C8_HEIGHT;
 	V[0xf] = 0;
 	for (int i = 0; i < N; i++) {
 		uint8_t row = RAM[I + i];
 		for (int j = 0; j < 8; j++) {
+			if (yOrig + i >= C8_HEIGHT || xOrig + j >= C8_WIDTH) // Clipping
+				continue;
+
 			uint8_t bit = getBit(row, 7 - j);
-			uint8_t& screenBit = screen[(yOrig + i) % C8_HEIGHT][(xOrig + j) % C8_WIDTH];
+			uint8_t& screenBit = screen[yOrig + i][xOrig + j];
 			if (screenBit == 1 && bit == 1) // Flip Check
 				V[0xf] = 1;
 			screenBit ^= bit;
 		}
 	}
+
+	if (drawOnCall)
+		swapBuffers();
 }
 
 void Emulator::skipKeyEq(uint16_t X) {

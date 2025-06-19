@@ -5,9 +5,11 @@
 
 	Project Description:
 		CHIP-8 Interpreter / Emulator.
-		Follows the wikipedia page on the subject.
+		Links used for reference:
 		https://en.wikipedia.org/wiki/CHIP-8
 		https://chip8.gulrak.net/  <--- Quirks
+		https://www.laurencescotford.net/2020/07/19/chip-8-on-the-cosmac-vip-drawing-sprites/ <--- DXYN Help
+		https://github.com/Timendus/chip8-test-suite <--- Test ROMs
 */
 
 
@@ -19,10 +21,14 @@
 using std::string;
 
 const string ROM_DIR = "../ROM/";
+const string TEST_DIR = "../test/";
 
 int main() {
 	Emulator emu;
-	emu.readROM(ROM_DIR + "4-flags.ch8");
+	emu.readROM(TEST_DIR + "6-keypad.ch8");
+	emu.setShiftQuirk(true);
+	emu.setBitwiseQuirk(true);
+	emu.setDrawOnCall(true);
 	emu.run();
 	return 0;
 }

@@ -66,6 +66,11 @@ public:
 	// https://chip8.gulrak.net/#quirk6
 	void setShiftQuirk(bool setting) { shiftVY = setting; }
 
+	// If this value is set to true, the screen will only update
+	// on calls to DXYN (draw sprite) or 00E0 (clear).
+	// Otherwise, the screen will update at a rate of 60 frames per second.
+	void setDrawOnCall(bool setting) { drawOnCall = setting; }
+
 
 private:
 	/* SDL */
@@ -87,6 +92,7 @@ private:
 	std::chrono::time_point<hires_clock> lastTick;
 	uint8_t waitingRegister = 0;
 	bool waitingForKey = false;
+	bool drawOnCall = false;
 
 	/* Emulated Hardware */
 	stack<uint16_t> Stack;
