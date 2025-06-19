@@ -20,6 +20,9 @@
 
 using std::string;
 
+const string ROM_DIR = "../ROM/";
+const string TEST_DIR = "../test/";
+
 int main() {
 	Emulator emu;
 	emu.readROM("Path-To-Rom-Here");

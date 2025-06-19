@@ -1,4 +1,4 @@
 build/
 .git/
-test/*
-ROM/*
+test/
+ROM/
