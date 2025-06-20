@@ -20,12 +20,12 @@
 
 using std::string;
 
-// const string ROM_DIR = "../ROM/";
-// const string TEST_DIR = "../test/";
+// Path to ROM Here
+const string pathToROM = "Path-To-Rom-Here";
 
 int main() {
 	Emulator emu;
-	emu.readROM("Path-To-Rom-Here");
+	emu.readROM(pathToROM);
 	emu.setShiftQuirk(true);
 	emu.setBitwiseQuirk(true);
 	emu.setDrawOnCall(true);
