@@ -20,8 +20,8 @@
 
 using std::string;
 
-const string ROM_DIR = "../ROM/";
-const string TEST_DIR = "../test/";
+// const string ROM_DIR = "../ROM/";
+// const string TEST_DIR = "../test/";
 
 int main() {
 	Emulator emu;
