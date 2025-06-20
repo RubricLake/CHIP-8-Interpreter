@@ -27,7 +27,9 @@ cmake --build .
 
 ## How to Use
 In **Main.cpp**, edit the PathToROM variable to be the path to whatever ROM you'd like to run the interpreter on and rebuild.
+
 A "Test-Suite" collection of ROMs by Timendus can be found [here](https://github.com/Timendus/chip8-test-suite).
+
 A bunch of games and demos that were aggregated by kripod can be found [here](https://github.com/kripod/chip8-roms).
 
 
